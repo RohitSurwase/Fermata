@@ -25,10 +25,20 @@ android {
         }
     }
 
+
+    // To fix missing libs issue
+    bundle {
+        language { enableSplit = false }
+        density { enableSplit = false }
+        abi { enableSplit = false } // <--- This ensures native libs stay inside
+    }
+
     buildTypes {
         release {
             debuggable false
-            minifyEnabled true
+            // To fix missing classes issue
+            minifyEnabled false
+            shrinkResources false
             resValue "string", "app_name_auto", "@string/app_name_auto_release"
             resValue "string", "app_name_mobile", "@string/app_name_mobile_release"
             resValue "string", "media_service_name_auto", "@string/media_service_name_auto_release"

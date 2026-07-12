@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.1.2)
+cmake_minimum_required(VERSION 4.3.1)
 project(whisper_jni LANGUAGES C CXX)
 include(FetchContent)
 
@@ -26,7 +26,8 @@ set(GGML_STATIC ${IS_RELEASE} CACHE BOOL "" FORCE)
 set(GGML_LTO ${IS_RELEASE} CACHE BOOL "" FORCE)
 
 if (CMAKE_ANDROID_ARCH_ABI MATCHES "arm64")
-    set(GGML_VULKAN ON CACHE BOOL "Enable Vulkan" FORCE)
+    # GGML_VULKAN is not compiling on Windows environment, so disabled
+    set(GGML_VULKAN OFF CACHE BOOL "Enable Vulkan" FORCE)
     FetchContent_Declare(vk_hpp GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Hpp
             GIT_TAG v1.3.275
     )
@@ -37,8 +38,13 @@ if (CMAKE_ANDROID_ARCH_ABI MATCHES "arm64")
     FetchContent_MakeAvailable(vk_hpp SPIRV-Headers)
     include_directories(${vk_hpp_SOURCE_DIR})
     include_directories(${SPIRV-Headers_SOURCE_DIR}/include)
-    set(Vulkan_INCLUDE_DIR "${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include")
-    set(Vulkan_GLSLC_EXECUTABLE "${ANDROID_NDK}/shader-tools/linux-x86_64/glslc" CACHE FILEPATH "" FORCE)
+    if (WIN32)
+        set(Vulkan_INCLUDE_DIR "${ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include")
+        set(Vulkan_GLSLC_EXECUTABLE "${ANDROID_NDK}/shader-tools/windows-x86_64/glslc.exe" CACHE FILEPATH "" FORCE)
+    else()
+        set(Vulkan_INCLUDE_DIR "${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include")
+        set(Vulkan_GLSLC_EXECUTABLE "${ANDROID_NDK}/shader-tools/linux-x86_64/glslc" CACHE FILEPATH "" FORCE)
+    endif()
     set(Vulkan_GLSLANG_VALIDATOR_EXECUTABLE "${Vulkan_GLSLC_EXECUTABLE}" CACHE FILEPATH "" FORCE)
     set(Vulkan_glslangValidator_FOUND TRUE CACHE BOOL "" FORCE)
     find_library(Vulkan_LIBRARY vulkan)

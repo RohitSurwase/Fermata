@@ -1,8 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
-    <uses-permission android:name="androidx.car.app.NAVIGATION_TEMPLATES" />
+    <!--Only navigation apps can use these permissions,
+     which is no longer the case after commenting androidx.car.app.CarAppService:
+        androidx.car.app.ACCESS_SURFACE
+        androidx.car.app.NAVIGATION_TEMPLATES-->
+    <!--<uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
+    <uses-permission android:name="androidx.car.app.NAVIGATION_TEMPLATES" />-->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -17,9 +21,11 @@
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
 
-    <uses-feature
+    <!--Google has strict policies preventing an app from mixing Automotive OS (car head unit)
+        and Android Auto (phone projection) features incorrectly.-->
+    <!--<uses-feature
         android:name="android.hardware.type.automotive"
-        android:required="true" />
+        android:required="true" />-->
 
     <queries>
         <intent>
@@ -79,10 +85,11 @@
             android:icon="@drawable/mirror_fs"
             android:label="@string/mirror_fs_service_name"
             tools:ignore="ExportedService">
-            <intent-filter>
+            <!--App cannot use android.media.browse.MediaBrowserService and androidx.car.app.CarAppService at the same time.-->
+            <!--<intent-filter>
                 <action android:name="androidx.car.app.CarAppService" />
                 <category android:name="androidx.car.app.category.NAVIGATION" />
-            </intent-filter>
+            </intent-filter>-->
         </service>
 
         <activity

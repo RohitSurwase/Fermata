@@ -16,3 +16,5 @@ res/*.jks
 # Custom builds
 fermata/src/custom/
 build-custom.gradle
+/.cocoindex_code/
+/keys/
