@@ -1,0 +1,102 @@
+Subject: [PATCH] Remove Fermata Mirror launcher entry, donate menu, and GitHub update check
+
+Fork-behavior changes for a self-distributed sideload build. Three independent edits:
+
+1) Remove "Fermata Mirror" from the Android Auto launcher
+   Comment out the MirrorService <service> registration in the auto manifest. Only the
+   manifest registration is removed; MirrorService.java and the shared
+   MirrorActivity/MirrorDisplay classes are left intact (still used by MirrorServiceFS and
+   LauncherActivity). CarService keeps its own CATEGORY_PROJECTION filter, so the primary
+   Android Auto media entry is unaffected.
+
+2) Remove the "Coffee for developer" (donate) nav-menu option
+   Comment out the donate item in NavBarMediator.showMenu() (R.id.nav_donate). The handler
+   block is left in place but is now unreachable.
+
+3) Disable the startup GitHub update check
+   checkUpdates() now returns immediately (whole method is a no-op). The original logic
+   queried api.github.com/repos/AndreyPavlenko/Fermata/releases/latest and, for a fork,
+   would prompt users toward the upstream APK. The DELETE_ON_STARTUP cleanup it contained
+   only ever serviced the updater, so it is correctly skipped too. The "Check for updates
+   on startup" Settings row is removed from SettingsFragment.
+
+APPLY ORDER: apply after 0001 + 0002 + play-publishable-disable-carappservice.patch
+(the auto-manifest hunk below assumes the publishability patch is already applied, since
+both edit fermata/src/auto/AndroidManifest.xml).
+---
+diff --git a/fermata/src/auto/AndroidManifest.xml b/fermata/src/auto/AndroidManifest.xml
+index 1ab7e90..958844c 100644
+--- a/fermata/src/auto/AndroidManifest.xml
++++ b/fermata/src/auto/AndroidManifest.xml
+@@ -59,7 +65,12 @@
+             </intent-filter>
+         </service>
+ 
+-        <service
++        <!-- "Fermata Mirror" (phone-screen mirroring) entry removed from the Android Auto launcher.
++             Only the manifest registration is commented out; MirrorService.java and the shared
++             MirrorActivity/MirrorDisplay classes are left intact (still used by MirrorServiceFS and
++             LauncherActivity). CarService keeps its own CATEGORY_PROJECTION filter, so the primary
++             Android Auto media entry is unaffected. -->
++        <!--<service
+             android:name="me.aap.fermata.auto.MirrorService"
+             android:exported="true"
+             android:icon="@drawable/mirror"
+@@ -71,7 +82,7 @@
+                 <category android:name="com.google.android.gms.car.category.CATEGORY_PROJECTION" />
+                 <category android:name="com.google.android.gms.car.category.CATEGORY_PROJECTION_OEM" />
+             </intent-filter>
+-        </service>
++        </service>-->
+ 
+         <service
+             android:name="me.aap.fermata.auto.MirrorServiceFS"
+diff --git a/fermata/src/main/java/me/aap/fermata/ui/activity/MainActivity.java b/fermata/src/main/java/me/aap/fermata/ui/activity/MainActivity.java
+index 58a7d0a..e01ddfb 100644
+--- a/fermata/src/main/java/me/aap/fermata/ui/activity/MainActivity.java
++++ b/fermata/src/main/java/me/aap/fermata/ui/activity/MainActivity.java
+@@ -177,6 +177,12 @@ public class MainActivity extends SplitCompatActivityBase
+ 	}
+ 
+ 	public void checkUpdates() {
++		// Update check disabled: this fork does not self-update from upstream GitHub releases.
++		// The whole method is a no-op — the DELETE_ON_STARTUP cleanup below only serviced the
++		// updater (update() populated that pref), so it has nothing to do once updates are off.
++		// (Original logic queried api.github.com/repos/AndreyPavlenko/Fermata/releases/latest.)
++		if (true) return;
++
+ 		if (!BuildConfig.AUTO) return;
+ 
+ 		PreferenceStore ps = FermataApplication.get().getPreferenceStore();
+diff --git a/fermata/src/main/java/me/aap/fermata/ui/fragment/NavBarMediator.java b/fermata/src/main/java/me/aap/fermata/ui/fragment/NavBarMediator.java
+index ae36f5f..c3ad1ad 100644
+--- a/fermata/src/main/java/me/aap/fermata/ui/fragment/NavBarMediator.java
++++ b/fermata/src/main/java/me/aap/fermata/ui/fragment/NavBarMediator.java
+@@ -243,7 +243,8 @@ public class NavBarMediator extends PrefNavBarMediator
+ 
+ 			b.addItem(R.id.nav_about, R.drawable.about, R.string.about);
+ 			b.addItem(R.id.settings_fragment, R.drawable.settings, R.string.settings);
+-			if (BuildConfig.AUTO) b.addItem(R.id.nav_donate, R.drawable.coffee, R.string.donate);
++			// Donate ("Coffee for developer") menu option intentionally removed.
++			// if (BuildConfig.AUTO) b.addItem(R.id.nav_donate, R.drawable.coffee, R.string.donate);
+ 			b.addItem(R.id.nav_exit, R.drawable.exit, a.isCarActivityNotMirror() ? R.string.restart : R.string.exit);
+ 		});
+ 	}
+diff --git a/fermata/src/main/java/me/aap/fermata/ui/fragment/SettingsFragment.java b/fermata/src/main/java/me/aap/fermata/ui/fragment/SettingsFragment.java
+index fc3e371..de17008 100644
+--- a/fermata/src/main/java/me/aap/fermata/ui/fragment/SettingsFragment.java
++++ b/fermata/src/main/java/me/aap/fermata/ui/fragment/SettingsFragment.java
+@@ -653,11 +653,8 @@ public class SettingsFragment extends MainActivityFragment
+ 			o.subtitle = R.string.internet_access_sub;
+ 		});
+ 		if (BuildConfig.AUTO) {
+-			sub1.addBooleanPref(o -> {
+-				o.store = a.getPrefs();
+-				o.pref = MainActivityPrefs.CHECK_UPDATES;
+-				o.title = R.string.check_updates;
+-			});
++			// "Check for updates on startup" option removed: this fork does not self-update
++			// from upstream GitHub releases (see MainActivity.checkUpdates()).
+ 			if (!a.isCarActivityNotMirror()) {
+ 				sub1.addButton(o -> {
+ 					o.title = R.string.open_log;

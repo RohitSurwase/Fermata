@@ -1,0 +1,248 @@
+From 8fe423c72af622369de56d08fa5300c9221edcef Mon Sep 17 00:00:00 2001
+From: Fermata Dev <dev@localhost>
+Date: Sat, 24 Oct 2026 16:20:10 +0530
+Subject: [PATCH 1/2] Add Settings option to enable/disable Internet access
+
+Adds an ENABLE_INTERNET preference (default on). When disabled:
+- App.isInternetAccessBlocked() short-circuits the in-house HTTP stack
+  (HttpConnection.connect fails fast with an IOException) and
+- FermataWebClient.shouldInterceptRequest serves a local 'Internet disabled'
+  page for main-frame WebView/YouTube navigation,
+with a one-time toast notifying the user. Exposed via a Settings toggle.
+
+Files:
+- depends/utils/.../app/App.java: isInternetAccessBlocked()/onInternetBlocked() hooks
+- depends/utils/.../net/http/HttpConnection.java: block check in connect()
+- fermata/.../FermataApplication.java: pref-backed override + toast
+- fermata/.../ui/activity/MainActivityPrefs.java: ENABLE_INTERNET pref (default true)
+- fermata/.../ui/fragment/SettingsFragment.java: Settings toggle row
+- fermata/.../res/values/strings.xml: internet_access strings
+- modules/web/.../FermataWebClient.java: WebView main-frame intercept
+
+Verified: auto-variant compile (compileAutoDebugSources) BUILD SUCCESSFUL.
+---
+ .../src/main/java/me/aap/utils/app/App.java   |  7 ++++++
+ .../me/aap/utils/net/http/HttpConnection.java |  6 +++++
+ .../me/aap/fermata/FermataApplication.java    | 22 +++++++++++++++++++
+ .../ui/activity/MainActivityPrefs.java        |  1 +
+ .../fermata/ui/fragment/SettingsFragment.java |  6 +++++
+ fermata/src/main/res/values/strings.xml       |  3 +++
+ .../fermata/addon/web/FermataWebClient.java   | 19 ++++++++++++++++
+ 7 files changed, 64 insertions(+)
+
+diff --git a/depends/utils/src/main/java/me/aap/utils/app/App.java b/depends/utils/src/main/java/me/aap/utils/app/App.java
+index 6e7e3f4..3cf894e 100644
+--- a/depends/utils/src/main/java/me/aap/utils/app/App.java
++++ b/depends/utils/src/main/java/me/aap/utils/app/App.java
+@@ -70,6 +70,13 @@ public class App extends android.app.Application {
+ 		return null;
+ 	}
+ 
++	public boolean isInternetAccessBlocked() {
++		return false;
++	}
++
++	public void onInternetBlocked() {
++	}
++
+ 	public int getLogFlushDelay() {
+ 		return 1;
+ 	}
+diff --git a/depends/utils/src/main/java/me/aap/utils/net/http/HttpConnection.java b/depends/utils/src/main/java/me/aap/utils/net/http/HttpConnection.java
+index 5c6ace5..6338a0b 100644
+--- a/depends/utils/src/main/java/me/aap/utils/net/http/HttpConnection.java
++++ b/depends/utils/src/main/java/me/aap/utils/net/http/HttpConnection.java
+@@ -98,6 +98,12 @@ public class HttpConnection extends HttpResponseEncoder implements HttpResponseH
+ 	}
+ 
+ 	public static void connect(Opts o, BiFunction<HttpResponse, Throwable, FutureSupplier<?>> consumer) {
++		App a = App.get();
++		if ((a != null) && a.isInternetAccessBlocked()) {
++			a.onInternetBlocked();
++			consumer.apply(null, new IOException("Internet access is disabled"));
++			return;
++		}
+ 		if (!checkRedirect(o, consumer)) return;
+ 		ConnectionId id = new ConnectionId(o.url);
+ 		FutureSupplier<HttpConnection> f;
+diff --git a/fermata/src/main/java/me/aap/fermata/FermataApplication.java b/fermata/src/main/java/me/aap/fermata/FermataApplication.java
+index ab87fea..936052a 100644
+--- a/fermata/src/main/java/me/aap/fermata/FermataApplication.java
++++ b/fermata/src/main/java/me/aap/fermata/FermataApplication.java
+@@ -7,7 +7,10 @@ import android.content.Context;
+ import android.content.Intent;
+ import android.content.ServiceConnection;
+ import android.content.SharedPreferences;
++import android.os.Handler;
+ import android.os.IBinder;
++import android.os.Looper;
++import android.widget.Toast;
+ 
+ import androidx.annotation.NonNull;
+ import androidx.annotation.Nullable;
+@@ -36,6 +39,7 @@ public class FermataApplication extends NetSplitCompatApp {
+ 	private volatile AddonManager addonManager;
+ 	private int mirroringMode;
+ 	private ServiceConnection eventService;
++	private volatile boolean internetBlockedNotified;
+ 
+ 	public static FermataApplication get() {
+ 		return App.get();
+@@ -48,6 +52,24 @@ public class FermataApplication extends NetSplitCompatApp {
+ 		bitmapCache = new BitmapCache();
+ 	}
+ 
++	@Override
++	public boolean isInternetAccessBlocked() {
++		return !getPreferenceStore().getBooleanPref(MainActivityPrefs.ENABLE_INTERNET);
++	}
++
++	@Override
++	public void onInternetBlocked() {
++		if (!internetBlockedNotified) {
++			internetBlockedNotified = true;
++			new Handler(Looper.getMainLooper()).post(new Runnable() {
++				@Override
++				public void run() {
++					Toast.makeText(get(), R.string.internet_disabled_toast, Toast.LENGTH_LONG).show();
++				}
++			});
++		}
++	}
++
+ 	@Override
+ 	protected void attachBaseContext(Context ctx) {
+ 		var ps = SharedPreferenceStore.create(ctx.getSharedPreferences("fermata", MODE_PRIVATE));
+diff --git a/fermata/src/main/java/me/aap/fermata/ui/activity/MainActivityPrefs.java b/fermata/src/main/java/me/aap/fermata/ui/activity/MainActivityPrefs.java
+index 6f84367..fc8c8ec 100644
+--- a/fermata/src/main/java/me/aap/fermata/ui/activity/MainActivityPrefs.java
++++ b/fermata/src/main/java/me/aap/fermata/ui/activity/MainActivityPrefs.java
+@@ -54,6 +54,7 @@ public interface MainActivityPrefs
+ 	Pref<Supplier<String>> SHOW_ADDON_ON_START = Pref.s("SHOW_ADDON_ON_START", (String) null);
+ 	Pref<BooleanSupplier> CHECK_UPDATES = Pref.b("CHECK_UPDATES", true);
+ 	Pref<LongSupplier> CHECK_UPDATES_STAMP = Pref.l("CHECK_UPDATES_STAMP", 0);
++	Pref<BooleanSupplier> ENABLE_INTERNET = Pref.b("ENABLE_INTERNET", true);
+ 	Pref<BooleanSupplier> SYS_BARS_ON_VIDEO_TOUCH = Pref.b("SYS_BARS_ON_VIDEO_TOUCH", false);
+ 	Pref<BooleanSupplier> LANDSCAPE_VIDEO = Pref.b("LANDSCAPE_VIDEO", false);
+ 	Pref<BooleanSupplier> CHANGE_BRIGHTNESS = Pref.b("CHANGE_BRIGHTNESS", false);
+diff --git a/fermata/src/main/java/me/aap/fermata/ui/fragment/SettingsFragment.java b/fermata/src/main/java/me/aap/fermata/ui/fragment/SettingsFragment.java
+index 7364cb3..fc3e371 100644
+--- a/fermata/src/main/java/me/aap/fermata/ui/fragment/SettingsFragment.java
++++ b/fermata/src/main/java/me/aap/fermata/ui/fragment/SettingsFragment.java
+@@ -646,6 +646,12 @@ public class SettingsFragment extends MainActivityFragment
+ 				o.onClick = () -> importPrefs(a);
+ 			});
+ 		}
++		sub1.addBooleanPref(o -> {
++			o.store = a.getPrefs();
++			o.pref = MainActivityPrefs.ENABLE_INTERNET;
++			o.title = R.string.internet_access;
++			o.subtitle = R.string.internet_access_sub;
++		});
+ 		if (BuildConfig.AUTO) {
+ 			sub1.addBooleanPref(o -> {
+ 				o.store = a.getPrefs();
+diff --git a/fermata/src/main/res/values/strings.xml b/fermata/src/main/res/values/strings.xml
+index 77a9b17..841669e 100644
+--- a/fermata/src/main/res/values/strings.xml
++++ b/fermata/src/main/res/values/strings.xml
+@@ -351,6 +351,9 @@
+     <string name="watched_threshold">Watched threshold</string>
+     <string name="watched_threshold_sub">Marked video as watched, if more than this number of percentages has been watched</string>
+ 
++    <string name="internet_access">Internet access</string>
++    <string name="internet_access_sub">Block HTTP requests and web browsing</string>
++    <string name="internet_disabled_toast">Internet access is disabled. Enable it in Settings.</string>
+     <string name="other">Other</string>
+     <string name="check_updates">Check for updates on startup</string>
+     <string name="update">Update</string>
+diff --git a/modules/web/src/main/java/me/aap/fermata/addon/web/FermataWebClient.java b/modules/web/src/main/java/me/aap/fermata/addon/web/FermataWebClient.java
+index 1fa3d0a..1cf6ed4 100644
+--- a/modules/web/src/main/java/me/aap/fermata/addon/web/FermataWebClient.java
++++ b/modules/web/src/main/java/me/aap/fermata/addon/web/FermataWebClient.java
+@@ -5,8 +5,12 @@ import static me.aap.utils.ui.activity.ActivityListener.FRAGMENT_CONTENT_CHANGED
+ import android.graphics.Bitmap;
+ import android.net.Uri;
+ import android.webkit.WebResourceRequest;
++import android.webkit.WebResourceResponse;
+ import android.webkit.WebView;
+ 
++import java.io.ByteArrayInputStream;
++import java.nio.charset.StandardCharsets;
++
+ import androidx.annotation.NonNull;
+ import androidx.webkit.WebResourceErrorCompat;
+ import androidx.webkit.WebViewClientCompat;
+@@ -14,6 +18,7 @@ import androidx.webkit.WebViewFeature;
+ 
+ import me.aap.fermata.addon.web.yt.YoutubeFragment;
+ import me.aap.fermata.ui.activity.MainActivityDelegate;
++import me.aap.utils.app.App;
+ import me.aap.utils.async.Completed;
+ import me.aap.utils.async.FutureSupplier;
+ import me.aap.utils.async.Promise;
+@@ -24,8 +29,22 @@ import me.aap.utils.log.Log;
+  * @author Andrey Pavlenko
+  */
+ public class FermataWebClient extends WebViewClientCompat {
++	private static final String BLOCK_PAGE = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Blocked</title><meta name='viewport' content='width=device-width,initial-scale=1'><style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f5f5f5;color:#333;text-align:center;padding:20px}h1{font-size:1.5rem;margin-bottom:8px}p{color:#666}</style></head><body><div><h1>Internet access is disabled</h1><p>Enable it in Settings to browse the web.</p></div></body></html>";
+ 	BooleanConsumer loading;
+ 
++	@Override
++	public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
++		if (request.isForMainFrame()) {
++			App app = App.get();
++			if (app.isInternetAccessBlocked()) {
++				app.onInternetBlocked();
++				return new WebResourceResponse("text/html", "UTF-8",
++						new ByteArrayInputStream(BLOCK_PAGE.getBytes(StandardCharsets.UTF_8)));
++			}
++		}
++		return null;
++	}
++
+ 	@Override
+ 	public void onPageStarted(WebView view, String url, Bitmap favicon) {
+ 		if (loading != null) {
+-- 
+2.54.0 (Apple Git-157)
+
+
+From e1a8e8ba14b94ff0d5f58d66fc1c0442cd32a702 Mon Sep 17 00:00:00 2001
+From: Fermata Dev <dev@localhost>
+Date: Sat, 24 Oct 2026 16:43:52 +0530
+Subject: [PATCH 2/2] Remove Favorites from the default bottom navigation
+
+Drops 'favorites' from the default nav-bar layout in
+NavBarMediator.getLayout(). The Favorites feature is unchanged and still
+reachable via:
+- the item context menu ('Add to favorites' / MediaItemMenuHandler),
+- voice commands (VoiceCommandHandler -> showFragment(favorites_fragment)),
+- the media-library Favorites root and the playback-notification favorite button.
+
+The getItems() 'favorites' case is kept so a user who already has Favorites
+in their saved NAV_BAR_ITEMS_* layout still sees it (no pref wipe); it is
+simply no longer a default tab.
+
+Verified: :fermata:compileAutoDebugSources BUILD SUCCESSFUL.
+---
+ .../main/java/me/aap/fermata/ui/fragment/NavBarMediator.java   | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/fermata/src/main/java/me/aap/fermata/ui/fragment/NavBarMediator.java b/fermata/src/main/java/me/aap/fermata/ui/fragment/NavBarMediator.java
+index 048418f..ae36f5f 100644
+--- a/fermata/src/main/java/me/aap/fermata/ui/fragment/NavBarMediator.java
++++ b/fermata/src/main/java/me/aap/fermata/ui/fragment/NavBarMediator.java
+@@ -322,7 +322,8 @@ public class NavBarMediator extends PrefNavBarMediator
+ 		String[] pref = getPreferenceStore(nb).getStringArrayPref(getPref(nb));
+ 		CollectionUtils.addAll(names, pref);
+ 		names.add("folders");
+-		names.add("favorites");
++		// "favorites" intentionally not added as a default nav tab (feature still reachable via
++		// the item context menu, voice commands, and the media-library Favorites root).
+ 		names.add("playlists");
+ 		for (AddonInfo ai : BuildConfig.ADDONS) {
+ 			FermataAddon a = amgr.getAddon(ai.className);
+-- 
+2.54.0 (Apple Git-157)
+
