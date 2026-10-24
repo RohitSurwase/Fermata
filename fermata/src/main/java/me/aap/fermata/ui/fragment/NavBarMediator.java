@@ -322,7 +322,8 @@ public class NavBarMediator extends PrefNavBarMediator
 		String[] pref = getPreferenceStore(nb).getStringArrayPref(getPref(nb));
 		CollectionUtils.addAll(names, pref);
 		names.add("folders");
-		names.add("favorites");
+		// "favorites" intentionally not added as a default nav tab (feature still reachable via
+		// the item context menu, voice commands, and the media-library Favorites root).
 		names.add("playlists");
 		for (AddonInfo ai : BuildConfig.ADDONS) {
 			FermataAddon a = amgr.getAddon(ai.className);
