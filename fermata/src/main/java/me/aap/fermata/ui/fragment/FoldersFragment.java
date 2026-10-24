@@ -2,12 +2,8 @@ package me.aap.fermata.ui.fragment;
 
 import static android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION;
 import static android.os.Build.VERSION.SDK_INT;
-import static me.aap.fermata.BuildConfig.ENABLE_GS;
 import static me.aap.fermata.util.Utils.isSafSupported;
-import static me.aap.fermata.vfs.FermataVfsManager.GDRIVE_ID;
 import static me.aap.fermata.vfs.FermataVfsManager.M3U_ID;
-import static me.aap.fermata.vfs.FermataVfsManager.SFTP_ID;
-import static me.aap.fermata.vfs.FermataVfsManager.SMB_ID;
 import static me.aap.utils.async.Completed.completed;
 import static me.aap.utils.function.ResultConsumer.Cancel.isCancellation;
 
@@ -140,9 +136,6 @@ public class FoldersFragment extends MediaLibFragment {
 			} else {
 				b.addItem(R.id.vfs_file_system, R.string.vfs_file_system);
 			}
-			b.addItem(R.id.vfs_sftp, R.string.vfs_sftp);
-			b.addItem(R.id.vfs_smb, R.string.vfs_smb);
-			if (ENABLE_GS) b.addItem(R.id.vfs_gdrive, R.string.vfs_gdrive);
 			b.addItem(R.id.m3u_playlist, R.string.m3u_playlist);
 		});
 	}
@@ -155,15 +148,6 @@ public class FoldersFragment extends MediaLibFragment {
 			return true;
 		} else if (itemId == R.id.vfs_content) {
 			addFolderIntent();
-			return true;
-		} else if (ENABLE_GS && (itemId == R.id.vfs_gdrive)) {
-			addFolderVfs(GDRIVE_ID, R.string.vfs_gdrive);
-			return true;
-		} else if (itemId == R.id.vfs_sftp) {
-			addFolderVfs(SFTP_ID, R.string.vfs_sftp);
-			return true;
-		} else if (itemId == R.id.vfs_smb) {
-			addFolderVfs(SMB_ID, R.string.vfs_smb);
 			return true;
 		} else if (itemId == R.id.m3u_playlist) {
 			addFolderVfs(M3U_ID, R.string.m3u_playlist);

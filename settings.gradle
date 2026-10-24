@@ -31,7 +31,12 @@ project(':utils').projectDir = file('depends/utils')
 
 file('modules').eachDir {
     def name = ':' + it.name
-    if ((':gdrive' == name) && !gradle.ext.enableGoogleServices) return
+    // Features removed from the build (addons + their impl modules).
+    // See Knowledge/FEATURE_REMOVAL_PLAN.md
+    def excludedModules = [':tv', ':felex', ':cast', ':chat', ':poi',
+                           ':whisper', ':mlkit', ':opusmt',
+                           ':smb', ':sftp', ':gdrive'] as Set
+    if (excludedModules.contains(name)) return
     gradle.ext.modules.add(name)
     include name
     project(name).projectDir = it

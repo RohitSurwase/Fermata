@@ -24,10 +24,12 @@ ext {
                     hasSettings: false
             ],
             [
-                    name   : 'subgen',
-                    icon   : 'subgen',
-                    class  : 'me.aap.fermata.addon.SubGenAddon',
-                    depends: 'exoplayer,translate'
+                    name       : 'subgen',
+                    icon       : 'subgen',
+                    class      : 'me.aap.fermata.addon.SubGenAddon',
+                    depends    : 'exoplayer',
+                    hasSettings: false,
+                    enabled    : false
             ],
     ]
 }
