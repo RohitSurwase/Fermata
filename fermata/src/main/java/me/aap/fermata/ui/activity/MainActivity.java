@@ -177,6 +177,12 @@ public class MainActivity extends SplitCompatActivityBase
 	}
 
 	public void checkUpdates() {
+		// Update check disabled: this fork does not self-update from upstream GitHub releases.
+		// The whole method is a no-op — the DELETE_ON_STARTUP cleanup below only serviced the
+		// updater (update() populated that pref), so it has nothing to do once updates are off.
+		// (Original logic queried api.github.com/repos/AndreyPavlenko/Fermata/releases/latest.)
+		if (true) return;
+
 		if (!BuildConfig.AUTO) return;
 
 		PreferenceStore ps = FermataApplication.get().getPreferenceStore();

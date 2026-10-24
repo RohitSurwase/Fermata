@@ -38,7 +38,7 @@ import me.aap.utils.ui.fragment.ActivityFragment;
 public class WebBrowserAddon implements FermataFragmentAddon, SharedPreferenceStore {
 	@NonNull
 	private static final AddonInfo info = FermataAddon.findAddonInfo(WebBrowserAddon.class.getName());
-	private static final Pref<Supplier<String>> LAST_URL = Pref.s("LAST_URL", "http://google.com");
+	private static final Pref<Supplier<String>> LAST_URL = Pref.s("LAST_URL", "https://search.brave.com");
 	public static final int DARK_MODE_DISABLED = 0;
 	public static final int DARK_MODE_ENABLED = 1;
 	public static final int DARK_MODE_AUTO = 2;

@@ -653,11 +653,8 @@ public class SettingsFragment extends MainActivityFragment
 			o.subtitle = R.string.internet_access_sub;
 		});
 		if (BuildConfig.AUTO) {
-			sub1.addBooleanPref(o -> {
-				o.store = a.getPrefs();
-				o.pref = MainActivityPrefs.CHECK_UPDATES;
-				o.title = R.string.check_updates;
-			});
+			// "Check for updates on startup" option removed: this fork does not self-update
+			// from upstream GitHub releases (see MainActivity.checkUpdates()).
 			if (!a.isCarActivityNotMirror()) {
 				sub1.addButton(o -> {
 					o.title = R.string.open_log;

@@ -59,7 +59,12 @@
             </intent-filter>
         </service>
 
-        <service
+        <!-- "Fermata Mirror" (phone-screen mirroring) entry removed from the Android Auto launcher.
+             Only the manifest registration is commented out; MirrorService.java and the shared
+             MirrorActivity/MirrorDisplay classes are left intact (still used by MirrorServiceFS and
+             LauncherActivity). CarService keeps its own CATEGORY_PROJECTION filter, so the primary
+             Android Auto media entry is unaffected. -->
+        <!--<service
             android:name="me.aap.fermata.auto.MirrorService"
             android:exported="true"
             android:icon="@drawable/mirror"
@@ -71,7 +76,7 @@
                 <category android:name="com.google.android.gms.car.category.CATEGORY_PROJECTION" />
                 <category android:name="com.google.android.gms.car.category.CATEGORY_PROJECTION_OEM" />
             </intent-filter>
-        </service>
+        </service>-->
 
         <service
             android:name="me.aap.fermata.auto.MirrorServiceFS"

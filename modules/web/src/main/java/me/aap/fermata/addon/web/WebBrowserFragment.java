@@ -382,6 +382,6 @@ public class WebBrowserFragment extends MainActivityFragment
 	}
 
 	protected String getSearchUrl() {
-		return "https://www.google.com/search?q=";
+		return "https://search.brave.com/search?q=";
 	}
 }
